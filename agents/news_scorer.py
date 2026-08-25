@@ -25,6 +25,7 @@ Scoring Criteria:
 
 from datetime import datetime, timedelta
 from models import NewsArticle
+from config import config
 from utils import get_logger
 import re
 
@@ -208,3 +209,65 @@ class NewsScorer:
         logger.info(f"Top article: {ranked[0].title} (score: {ranked[0].score})")
 
         return ranked
+
+    def select_diverse_candidates(
+        self,
+        ranked_articles: list[NewsArticle],
+        top_n: int = None,
+        max_per_source: int = None
+    ) -> list[NewsArticle]:
+        """
+        Select diverse candidates from ranked articles.
+
+        Applies source diversity constraints AFTER scoring to prevent
+        a single source from dominating the candidate pool.
+
+        Args:
+            ranked_articles: Articles already scored and ranked (highest first)
+            top_n: Consider top N ranked articles (default from config)
+            max_per_source: Maximum articles per source (default from config)
+
+        Returns:
+            List of diverse candidates, preserving rank order
+        """
+        # Use config defaults if not specified
+        top_n = top_n if top_n is not None else config.DIVERSITY_TOP_N
+        max_per_source = max_per_source if max_per_source is not None else config.DIVERSITY_MAX_PER_SOURCE
+
+        # Edge case: empty list
+        if not ranked_articles:
+            return []
+
+        # Edge case: invalid parameters
+        if top_n <= 0 or max_per_source <= 0:
+            logger.warning(f"Invalid diversity parameters: top_n={top_n}, max_per_source={max_per_source}")
+            # Fallback to top 1 article
+            return ranked_articles[:1]
+
+        # Consider only top N ranked articles
+        candidates_to_consider = ranked_articles[:min(top_n, len(ranked_articles))]
+
+        # Track source counts
+        source_counts = {}
+        diverse_candidates = []
+
+        for article in candidates_to_consider:
+            # Handle missing/None source
+            source = article.source if article.source else "Unknown"
+
+            # Check if source has reached limit
+            current_count = source_counts.get(source, 0)
+
+            if current_count < max_per_source:
+                diverse_candidates.append(article)
+                source_counts[source] = current_count + 1
+
+        # Edge case: no candidates passed diversity filter (shouldn't happen with reasonable params)
+        if not diverse_candidates and ranked_articles:
+            logger.warning("Diversity filter resulted in empty candidates, falling back to top article")
+            return ranked_articles[:1]
+
+        logger.info(f"Diversity selection: {len(diverse_candidates)} candidates from {len(source_counts)} sources")
+        logger.debug(f"Source distribution in candidates: {source_counts}")
+
+        return diverse_candidates

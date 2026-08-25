@@ -214,10 +214,25 @@ def main():
         # Step 3: Score and rank
         ranked_articles = score_and_rank(unique_articles)
 
-        # Select best article
-        best_article = ranked_articles[0]
+        # Step 3.5: Apply diversity-aware selection
+        logger.info("=" * 60)
+        logger.info("STEP 3.5: Diversity-Aware Selection")
+        logger.info("=" * 60)
+
+        scorer = NewsScorer()
+        diverse_candidates = scorer.select_diverse_candidates(ranked_articles)
+
+        logger.info(f"Diverse candidates: {len(diverse_candidates)} articles")
+        if len(diverse_candidates) > 1:
+            logger.info("Top 3 diverse candidates:")
+            for i, article in enumerate(diverse_candidates[:3], 1):
+                logger.info(f"  {i}. [{article.score:.1f}] {article.source}: {article.title}")
+
+        # Select best article from diverse candidates
+        best_article = diverse_candidates[0]
         logger.info(f"Selected article: {best_article.title}")
         logger.info(f"Score: {best_article.score}")
+        logger.info(f"Source: {best_article.source}")
         logger.info(f"URL: {best_article.url}")
 
         # Step 4: Generate LinkedIn post

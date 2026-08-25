@@ -60,6 +60,10 @@ class Config:
     DUPLICATE_CHECK_DAYS: int = 30  # Check for duplicates within last 30 days
     RSS_FETCH_TIMEOUT: int = int(os.getenv("RSS_FETCH_TIMEOUT", "10"))  # Timeout for RSS requests in seconds
 
+    # Source Diversity Configuration
+    DIVERSITY_TOP_N: int = int(os.getenv("DIVERSITY_TOP_N", "10"))  # Consider top N ranked articles for diversity
+    DIVERSITY_MAX_PER_SOURCE: int = int(os.getenv("DIVERSITY_MAX_PER_SOURCE", "3"))  # Max articles per source in candidate pool
+
     # LinkedIn Post Configuration
     MAX_POST_WORDS: int = 180
     MIN_HASHTAGS: int = 4
