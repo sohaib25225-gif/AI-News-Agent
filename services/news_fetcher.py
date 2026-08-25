@@ -20,6 +20,7 @@ How it works:
 from datetime import datetime, timedelta
 from typing import Optional
 import feedparser
+import requests
 import pytz
 from models import NewsArticle
 from config import config
@@ -43,6 +44,10 @@ class NewsFetcher:
         """
         self.max_age_hours = max_age_hours or config.NEWS_MAX_AGE_HOURS
         self.timezone = pytz.timezone(config.TIMEZONE)
+        self.timeout = config.RSS_FETCH_TIMEOUT
+        self.headers = {
+            'User-Agent': 'AI-News-Agent/1.0 (Educational Project)'
+        }
 
     def fetch_all(self) -> list[NewsArticle]:
         """
@@ -82,11 +87,55 @@ class NewsFetcher:
             return []
 
         logger.debug(f"Fetching RSS feed: {source['url']}")
-        feed = feedparser.parse(source["url"])
 
+        try:
+            # Fetch the feed using requests with redirect handling
+            response = requests.get(
+                source["url"],
+                headers=self.headers,
+                timeout=self.timeout,
+                allow_redirects=True
+            )
+
+            # Check HTTP status
+            if response.status_code == 404:
+                logger.error(f"Feed not found (HTTP 404) for {source['name']}: {source['url']}")
+                return []
+            elif response.status_code == 410:
+                logger.error(f"Feed permanently gone (HTTP 410) for {source['name']}: {source['url']}")
+                return []
+            elif response.status_code >= 500:
+                logger.error(f"Server error (HTTP {response.status_code}) for {source['name']}: {source['url']}")
+                return []
+            elif response.status_code != 200:
+                logger.warning(f"Unexpected HTTP status {response.status_code} for {source['name']}: {source['url']}")
+                # Try to parse anyway in case it's still valid
+
+            # Parse the feed content
+            feed = feedparser.parse(response.content)
+
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout ({self.timeout}s) fetching {source['name']}: {source['url']}")
+            return []
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error for {source['name']}: {str(e)}")
+            return []
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error for {source['name']}: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error fetching {source['name']}: {str(e)}")
+            return []
+
+        # Check for feed parsing errors
         if feed.bozo:
-            # 'bozo' means the feed has errors
             logger.warning(f"Feed parsing warning for {source['name']}: {feed.bozo_exception}")
+            # Continue anyway - feedparser can often extract data from imperfect feeds
+
+        # Check if feed has any entries
+        if not feed.entries:
+            logger.warning(f"No entries found in feed for {source['name']}")
+            return []
 
         articles = []
         cutoff_time = datetime.now(self.timezone) - timedelta(hours=self.max_age_hours)

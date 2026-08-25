@@ -14,7 +14,7 @@ import pytz
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.sources import NEWS_SOURCES
+from config.sources import RSS_SOURCES
 from utils import get_logger
 
 logger = get_logger(__name__)
@@ -138,12 +138,12 @@ def main():
     print("\n" + "="*70)
     print("RSS FEED DIAGNOSTIC TOOL")
     print("="*70)
-    print(f"Testing {len(NEWS_SOURCES)} RSS feeds...")
+    print(f"Testing {len(RSS_SOURCES)} RSS feeds...")
     print(f"Current time: {datetime.now(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
     results = []
 
-    for source in NEWS_SOURCES:
+    for source in RSS_SOURCES:
         test_feed(source['name'], source['url'])
         results.append(source['name'])
 

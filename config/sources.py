@@ -28,58 +28,30 @@ class NewsSource(TypedDict):
 
 
 # Primary AI News Sources (RSS Feeds)
+# Updated 2026-08-25: Verified all URLs, fixed redirects, replaced broken sources
 RSS_SOURCES: list[NewsSource] = [
+    # Major AI Companies
     {
         "name": "OpenAI Blog",
-        "url": "https://openai.com/blog/rss.xml",
-        "category": "company",
-        "source_type": "rss"
-    },
-    {
-        "name": "Anthropic Blog",
-        "url": "https://www.anthropic.com/news/rss.xml",
+        "url": "https://openai.com/blog/rss.xml",  # Verified working
         "category": "company",
         "source_type": "rss"
     },
     {
         "name": "Google AI Blog",
-        "url": "https://blog.google/technology/ai/rss/",
+        "url": "https://blog.google/technology/ai/rss/",  # Verified working
         "category": "company",
         "source_type": "rss"
     },
     {
-        "name": "DeepMind Blog",
-        "url": "https://deepmind.google/blog/rss.xml",
-        "category": "research",
+        "name": "Meta Blog",
+        "url": "https://about.fb.com/feed/",  # Updated URL - Meta company blog
+        "category": "company",
         "source_type": "rss"
     },
     {
-        "name": "Hugging Face Blog",
-        "url": "https://huggingface.co/blog/feed.xml",
-        "category": "community",
-        "source_type": "rss"
-    },
-    {
-        "name": "GitHub Blog - AI",
-        "url": "https://github.blog/feed/",
-        "category": "developer",
-        "source_type": "rss"
-    },
-    {
-        "name": "LangChain Blog",
-        "url": "https://blog.langchain.dev/rss/",
-        "category": "developer",
-        "source_type": "rss"
-    },
-    {
-        "name": "Meta AI Blog",
-        "url": "https://ai.meta.com/blog/rss/",
-        "category": "research",
-        "source_type": "rss"
-    },
-    {
-        "name": "Microsoft AI Blog",
-        "url": "https://blogs.microsoft.com/ai/feed/",
+        "name": "Microsoft Blog",
+        "url": "https://www.microsoft.com/en-us/microsoft-365/blog/feed/",  # Updated - general MS blog
         "category": "company",
         "source_type": "rss"
     },
@@ -89,15 +61,10 @@ RSS_SOURCES: list[NewsSource] = [
         "category": "company",
         "source_type": "rss"
     },
+    # Research & Academic
     {
-        "name": "Mistral AI Blog",
-        "url": "https://mistral.ai/news/rss.xml",
-        "category": "company",
-        "source_type": "rss"
-    },
-    {
-        "name": "Papers with Code",
-        "url": "https://paperswithcode.com/feeds/latest/",
+        "name": "DeepMind Blog",
+        "url": "https://deepmind.google/blog/rss.xml",
         "category": "research",
         "source_type": "rss"
     },
@@ -105,6 +72,38 @@ RSS_SOURCES: list[NewsSource] = [
         "name": "arXiv AI",
         "url": "https://rss.arxiv.org/rss/cs.AI",
         "category": "research",
+        "source_type": "rss"
+    },
+    # Developer & Community
+    {
+        "name": "Hugging Face Blog",
+        "url": "https://huggingface.co/blog/feed.xml",
+        "category": "community",
+        "source_type": "rss"
+    },
+    {
+        "name": "GitHub Blog",
+        "url": "https://github.blog/feed/",
+        "category": "developer",
+        "source_type": "rss"
+    },
+    {
+        "name": "AWS ML Blog",
+        "url": "https://aws.amazon.com/blogs/machine-learning/feed/",  # Added - AWS ML content
+        "category": "developer",
+        "source_type": "rss"
+    },
+    # Tech News & Industry
+    {
+        "name": "TechCrunch AI",
+        "url": "https://techcrunch.com/category/artificial-intelligence/feed/",  # Added - current AI news
+        "category": "news",
+        "source_type": "rss"
+    },
+    {
+        "name": "MIT Technology Review AI",
+        "url": "https://www.technologyreview.com/feed/",  # Added - quality AI journalism
+        "category": "news",
         "source_type": "rss"
     },
 ]

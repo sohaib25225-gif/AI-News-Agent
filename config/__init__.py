@@ -58,6 +58,7 @@ class Config:
     # News Configuration
     NEWS_MAX_AGE_HOURS: int = 24  # Only consider news from last 24 hours
     DUPLICATE_CHECK_DAYS: int = 30  # Check for duplicates within last 30 days
+    RSS_FETCH_TIMEOUT: int = int(os.getenv("RSS_FETCH_TIMEOUT", "10"))  # Timeout for RSS requests in seconds
 
     # LinkedIn Post Configuration
     MAX_POST_WORDS: int = 180
