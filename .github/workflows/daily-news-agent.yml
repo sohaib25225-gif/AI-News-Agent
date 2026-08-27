@@ -9,6 +9,12 @@ on:
   # Allow manual trigger for testing
   workflow_dispatch:
 
+# Concurrency protection - ensures only one workflow run executes at a time
+# Prevents simultaneous runs from causing duplicate posts or database conflicts
+concurrency:
+  group: news-agent-workflow
+  cancel-in-progress: false
+
 jobs:
   run-agent:
     runs-on: ubuntu-latest
@@ -16,6 +22,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Restore database from previous run to maintain article history
+      # Uses pattern matching to find most recent cache entry
+      - name: Restore database cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: database/news.db
+          key: news-db-${{ github.run_id }}
+          restore-keys: |
+            news-db-
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -49,9 +66,20 @@ jobs:
           mkdir -p logs
 
       - name: Run AI News Agent
+        id: run-agent
         run: python main.py
         env:
           TZ: Asia/Karachi
+
+      # Save database to cache for next run (only on successful execution)
+      # Condition: success() ensures we only cache known-good database state
+      # This prevents corrupted or partial databases from overwriting good cache
+      - name: Save database cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: database/news.db
+          key: news-db-${{ github.run_id }}
 
       - name: Upload logs (on failure)
         if: failure()
