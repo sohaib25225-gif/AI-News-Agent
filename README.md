@@ -144,7 +144,7 @@ Add to crontab:
 ## API Usage & Costs
 
 ### Google Gemini (Free Tier)
-- **Model**: gemini-2.5-flash
+- **Model**: gemini-3.6-flash
 - **Rate Limits**: 15 requests/min, 1,500 requests/day
 - **Cost**: $0 (free tier)
 - **Perfect for**: 1 post per day

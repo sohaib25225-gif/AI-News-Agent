@@ -40,7 +40,7 @@ class PostGenerator:
     """
 
     # Gemini API endpoint
-    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 
     # Post generation prompt template
     PROMPT_TEMPLATE = """You are a professional LinkedIn content creator specializing in AI and technology news.
