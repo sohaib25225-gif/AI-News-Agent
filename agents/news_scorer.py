@@ -213,61 +213,71 @@ class NewsScorer:
     def select_diverse_candidates(
         self,
         ranked_articles: list[NewsArticle],
+        quality_threshold: int = None,
         top_n: int = None,
         max_per_source: int = None
     ) -> list[NewsArticle]:
         """
-        Select diverse candidates from ranked articles.
+        Select diverse candidates using per-source best + quality threshold.
 
-        Applies source diversity constraints AFTER scoring to prevent
-        a single source from dominating the candidate pool.
+        Phase 3C: This approach ensures source diversity even when one source
+        (e.g., arXiv) dominates both volume (95%) and top rankings. Instead of
+        considering only top-N articles (which may all be from one source), we
+        take the best article from each source and filter by quality.
+
+        Algorithm:
+        1. Group articles by source
+        2. Select best article from each source
+        3. Filter by minimum quality threshold
+        4. Sort by score (highest first)
 
         Args:
             ranked_articles: Articles already scored and ranked (highest first)
-            top_n: Consider top N ranked articles (default from config)
-            max_per_source: Maximum articles per source (default from config)
+            quality_threshold: Minimum score required (default from config)
+            top_n: DEPRECATED - kept for backward compatibility, not used
+            max_per_source: DEPRECATED - kept for backward compatibility, not used
 
         Returns:
-            List of diverse candidates, preserving rank order
+            List of diverse candidates sorted by score (highest first)
         """
-        # Use config defaults if not specified
-        top_n = top_n if top_n is not None else config.DIVERSITY_TOP_N
-        max_per_source = max_per_source if max_per_source is not None else config.DIVERSITY_MAX_PER_SOURCE
+        # Use config default if not specified
+        quality_threshold = quality_threshold if quality_threshold is not None else config.DIVERSITY_QUALITY_THRESHOLD
 
         # Edge case: empty list
         if not ranked_articles:
             return []
 
-        # Edge case: invalid parameters
-        if top_n <= 0 or max_per_source <= 0:
-            logger.warning(f"Invalid diversity parameters: top_n={top_n}, max_per_source={max_per_source}")
-            # Fallback to top 1 article
-            return ranked_articles[:1]
+        # Edge case: invalid threshold
+        if quality_threshold < 0:
+            logger.warning(f"Invalid quality threshold: {quality_threshold}, using 0")
+            quality_threshold = 0
 
-        # Consider only top N ranked articles
-        candidates_to_consider = ranked_articles[:min(top_n, len(ranked_articles))]
-
-        # Track source counts
-        source_counts = {}
-        diverse_candidates = []
-
-        for article in candidates_to_consider:
-            # Handle missing/None source
+        # Group by source, keeping only the best (first occurrence in ranked list)
+        source_best = {}
+        for article in ranked_articles:
             source = article.source if article.source else "Unknown"
+            # Only keep first (best) article from each source
+            if source not in source_best:
+                source_best[source] = article
 
-            # Check if source has reached limit
-            current_count = source_counts.get(source, 0)
+        # Filter by quality threshold
+        candidates = [
+            article for article in source_best.values()
+            if article.score >= quality_threshold
+        ]
 
-            if current_count < max_per_source:
-                diverse_candidates.append(article)
-                source_counts[source] = current_count + 1
+        # Sort by score (highest first) to preserve quality ranking
+        candidates.sort(key=lambda x: x.score, reverse=True)
 
-        # Edge case: no candidates passed diversity filter (shouldn't happen with reasonable params)
-        if not diverse_candidates and ranked_articles:
-            logger.warning("Diversity filter resulted in empty candidates, falling back to top article")
+        # Edge case: no candidates meet threshold
+        if not candidates and ranked_articles:
+            logger.warning(f"No candidates meet quality threshold {quality_threshold}, falling back to top article")
             return ranked_articles[:1]
 
-        logger.info(f"Diversity selection: {len(diverse_candidates)} candidates from {len(source_counts)} sources")
-        logger.debug(f"Source distribution in candidates: {source_counts}")
+        # Count unique sources
+        unique_sources = len(set(c.source for c in candidates))
 
-        return diverse_candidates
+        logger.info(f"Diversity selection: {len(candidates)} candidates from {unique_sources} sources")
+        logger.debug(f"Sources: {[c.source for c in candidates]}")
+
+        return candidates

@@ -73,9 +73,9 @@ def test_scoring():
 
 
 def test_diversity_basic():
-    """TEST 1: Basic diversity selection."""
+    """TEST 1: Per-source selection with quality threshold."""
     print("\n" + "=" * 60)
-    print("TEST 1: BASIC DIVERSITY SELECTION")
+    print("TEST 1: PER-SOURCE SELECTION")
     print("=" * 60)
 
     tz = pytz.timezone("Asia/Karachi")
@@ -91,9 +91,9 @@ def test_diversity_basic():
         NewsArticle("Article 6", "Source C", "http://6", datetime.now(tz), "text", score=65),
     ]
 
-    candidates = scorer.select_diverse_candidates(articles, top_n=10, max_per_source=2)
+    candidates = scorer.select_diverse_candidates(articles, quality_threshold=60)
 
-    # Verify no source exceeds max_per_source
+    # Verify one article per source (best from each)
     source_counts = {}
     for article in candidates:
         source_counts[article.source] = source_counts.get(article.source, 0) + 1
@@ -101,16 +101,19 @@ def test_diversity_basic():
     print(f"Candidates: {len(candidates)}")
     print(f"Source distribution: {source_counts}")
 
-    assert max(source_counts.values()) <= 2, "Source exceeded max_per_source"
-    assert source_counts["Source A"] == 2, "Source A should have exactly 2"
+    assert len(candidates) == 3, "Should have 3 candidates (one per source)"
+    assert source_counts["Source A"] == 1, "Source A should have exactly 1 (best)"
     assert source_counts["Source B"] == 1, "Source B should have exactly 1"
     assert source_counts["Source C"] == 1, "Source C should have exactly 1"
+    # Verify best from Source A (highest score: 90)
+    source_a_articles = [c for c in candidates if c.source == "Source A"]
+    assert source_a_articles[0].score == 90, "Should select best from Source A"
 
-    print("PASS: PASSED: No source exceeds max_per_source")
+    print("PASS: PASSED: One best article per source")
 
 
 def test_diversity_ranking_preserved():
-    """TEST 2: Ranking is preserved."""
+    """TEST 2: Ranking is preserved (sorted by score)."""
     print("\n" + "=" * 60)
     print("TEST 2: RANKING PRESERVED")
     print("=" * 60)
@@ -125,7 +128,10 @@ def test_diversity_ranking_preserved():
         NewsArticle("Low Score C", "Source C", "http://4", datetime.now(tz), "text", score=60),
     ]
 
-    candidates = scorer.select_diverse_candidates(articles, top_n=10, max_per_source=2)
+    candidates = scorer.select_diverse_candidates(articles, quality_threshold=50)
+
+    # Should have 3 candidates (one best from each source)
+    assert len(candidates) == 3, f"Expected 3 candidates, got {len(candidates)}"
 
     # Verify scores are descending
     for i in range(len(candidates) - 1):
@@ -136,7 +142,7 @@ def test_diversity_ranking_preserved():
 
 
 def test_diversity_arxiv_dominance():
-    """TEST 3: arXiv dominance prevention."""
+    """TEST 3: arXiv dominance prevention via per-source selection."""
     print("\n" + "=" * 60)
     print("TEST 3: ARXIV DOMINANCE PREVENTION")
     print("=" * 60)
@@ -156,7 +162,7 @@ def test_diversity_arxiv_dominance():
         NewsArticle("arXiv 6", "arXiv AI", "http://8", datetime.now(tz), "text", score=70),
     ]
 
-    candidates = scorer.select_diverse_candidates(articles, top_n=10, max_per_source=3)
+    candidates = scorer.select_diverse_candidates(articles, quality_threshold=65)
 
     source_counts = {}
     for article in candidates:
@@ -164,15 +170,17 @@ def test_diversity_arxiv_dominance():
 
     print(f"Source distribution: {source_counts}")
 
-    assert source_counts.get("arXiv AI", 0) <= 3, "arXiv exceeded max_per_source"
+    # Per-source approach: only 1 article per source (the best)
+    assert source_counts.get("arXiv AI", 0) == 1, "arXiv should have exactly 1 (best)"
     assert "OpenAI Blog" in source_counts, "Company source should be included"
     assert "TechCrunch AI" in source_counts, "News source should be included"
+    assert len(candidates) == 3, "Should have 3 sources represented"
 
-    print("PASS: PASSED: arXiv limited, other sources included")
+    print("PASS: PASSED: arXiv limited to best, other sources included")
 
 
 def test_diversity_high_quality_non_arxiv():
-    """TEST 4: High-quality non-arXiv article."""
+    """TEST 4: High-quality non-arXiv article wins."""
     print("\n" + "=" * 60)
     print("TEST 4: HIGH-QUALITY NON-ARXIV")
     print("=" * 60)
@@ -190,7 +198,10 @@ def test_diversity_high_quality_non_arxiv():
     # Sort by score (select_diverse_candidates expects ranked articles)
     articles_ranked = sorted(articles, key=lambda x: x.score, reverse=True)
 
-    candidates = scorer.select_diverse_candidates(articles_ranked, top_n=10, max_per_source=3)
+    candidates = scorer.select_diverse_candidates(articles_ranked, quality_threshold=70)
+
+    # Should have 2 candidates (best from each source)
+    assert len(candidates) == 2, f"Expected 2 candidates, got {len(candidates)}"
 
     # Verify the highest-scoring article (Breaking News) is in candidates
     assert any(a.title == "Breaking News" for a in candidates), "High-scoring company article missing"
@@ -201,7 +212,7 @@ def test_diversity_high_quality_non_arxiv():
 
 
 def test_diversity_single_source():
-    """TEST 5: All articles from one source."""
+    """TEST 5: All articles from one source - selects best."""
     print("\n" + "=" * 60)
     print("TEST 5: SINGLE SOURCE")
     print("=" * 60)
@@ -217,20 +228,21 @@ def test_diversity_single_source():
         NewsArticle("Article 5", "Source A", "http://5", datetime.now(tz), "text", score=70),
     ]
 
-    candidates = scorer.select_diverse_candidates(articles, top_n=10, max_per_source=3)
+    candidates = scorer.select_diverse_candidates(articles, quality_threshold=60)
 
-    # Should return up to max_per_source articles
-    assert len(candidates) == 3, f"Expected 3 candidates, got {len(candidates)}"
+    # Per-source approach: only 1 article (best from source)
+    assert len(candidates) == 1, f"Expected 1 candidate, got {len(candidates)}"
     assert all(a.source == "Source A" for a in candidates), "All should be from Source A"
+    assert candidates[0].score == 90, "Should select best article"
 
     print(f"Candidates: {len(candidates)}")
     print("PASS: PASSED: Single source handled gracefully")
 
 
 def test_diversity_fewer_than_top_n():
-    """TEST 6: Fewer articles than TOP_N."""
+    """TEST 6: Small article set - all sources represented."""
     print("\n" + "=" * 60)
-    print("TEST 6: FEWER THAN TOP_N")
+    print("TEST 6: SMALL ARTICLE SET")
     print("=" * 60)
 
     tz = pytz.timezone("Asia/Karachi")
@@ -242,10 +254,12 @@ def test_diversity_fewer_than_top_n():
         NewsArticle("Article 3", "Source C", "http://3", datetime.now(tz), "text", score=80),
     ]
 
-    candidates = scorer.select_diverse_candidates(articles, top_n=10, max_per_source=3)
+    candidates = scorer.select_diverse_candidates(articles, quality_threshold=70)
 
-    # Should process all available articles
+    # Should have one from each source
     assert len(candidates) == 3, f"Expected 3 candidates, got {len(candidates)}"
+    sources = set(c.source for c in candidates)
+    assert len(sources) == 3, "Should have 3 unique sources"
 
     print(f"Candidates: {len(candidates)}")
     print("PASS: PASSED: All available articles processed")
@@ -258,14 +272,14 @@ def test_diversity_empty_list():
     print("=" * 60)
 
     scorer = NewsScorer()
-    candidates = scorer.select_diverse_candidates([], top_n=10, max_per_source=3)
+    candidates = scorer.select_diverse_candidates([], quality_threshold=25)
 
     assert candidates == [], "Empty list should return empty list"
     print("PASS: PASSED: Empty list handled safely")
 
 
 def test_diversity_missing_source():
-    """TEST 8: Missing/None source."""
+    """TEST 8: Missing/None source - treated as 'Unknown'."""
     print("\n" + "=" * 60)
     print("TEST 8: MISSING SOURCE")
     print("=" * 60)
@@ -280,15 +294,16 @@ def test_diversity_missing_source():
     ]
 
     # Should not crash
-    candidates = scorer.select_diverse_candidates(articles, top_n=10, max_per_source=2)
+    candidates = scorer.select_diverse_candidates(articles, quality_threshold=70)
 
     assert len(candidates) > 0, "Should return candidates"
+    assert len(candidates) == 2, "Should have 2 sources (Unknown and Source B)"
     print(f"Candidates: {len(candidates)}")
     print("PASS: PASSED: Missing source handled safely")
 
 
 def test_diversity_final_selection_one():
-    """TEST 9: Final selection is exactly ONE article."""
+    """TEST 9: Final selection is exactly ONE article (highest score)."""
     print("\n" + "=" * 60)
     print("TEST 9: FINAL SELECTION IS ONE")
     print("=" * 60)

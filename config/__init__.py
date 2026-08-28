@@ -61,6 +61,9 @@ class Config:
     RSS_FETCH_TIMEOUT: int = int(os.getenv("RSS_FETCH_TIMEOUT", "10"))  # Timeout for RSS requests in seconds
 
     # Source Diversity Configuration
+    # Phase 3C: Per-source + quality threshold approach
+    DIVERSITY_QUALITY_THRESHOLD: int = int(os.getenv("DIVERSITY_QUALITY_THRESHOLD", "25"))  # Minimum score for candidate inclusion
+    # Deprecated Phase 3A parameters (kept for backward compatibility if needed)
     DIVERSITY_TOP_N: int = int(os.getenv("DIVERSITY_TOP_N", "10"))  # Consider top N ranked articles for diversity
     DIVERSITY_MAX_PER_SOURCE: int = int(os.getenv("DIVERSITY_MAX_PER_SOURCE", "3"))  # Max articles per source in candidate pool
 
