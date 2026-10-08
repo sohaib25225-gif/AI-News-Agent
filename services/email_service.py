@@ -23,12 +23,13 @@ Email Format:
 """
 
 import smtplib
+import html
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from typing import Optional
 
-from models import LinkedInPost
+from models import LinkedInPost, IntelligenceBrief
 from config import config
 from utils import get_logger
 
@@ -452,3 +453,359 @@ You're all set to receive daily LinkedIn post drafts!
         except Exception as e:
             logger.error(f"Failed to send test email: {str(e)}", exc_info=True)
             return False
+
+    # ========================================================================
+    # V1 Methods - Intelligence Brief Email
+    # ========================================================================
+
+    def send_intelligence_brief(self, brief: IntelligenceBrief) -> bool:
+        """
+        Send an intelligence brief via email.
+
+        Args:
+            brief: IntelligenceBrief object to send
+
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        logger.info(f"Sending intelligence brief to {self.receiver_email}")
+
+        try:
+            # Create email message
+            message = self._create_brief_email_message(brief)
+
+            # Send via SMTP
+            self._send_via_smtp(message)
+
+            logger.info("Intelligence brief email sent successfully")
+            return True
+
+        except smtplib.SMTPAuthenticationError:
+            logger.error("SMTP authentication failed. Check email credentials.")
+            return False
+        except smtplib.SMTPException as e:
+            logger.error(f"SMTP error: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to send intelligence brief email: {str(e)}", exc_info=True)
+            return False
+
+    def _create_brief_email_message(self, brief: IntelligenceBrief) -> MIMEMultipart:
+        """
+        Create a formatted email message for intelligence brief.
+
+        Args:
+            brief: IntelligenceBrief to format
+
+        Returns:
+            MIMEMultipart email message
+        """
+        # Create message container
+        message = MIMEMultipart("alternative")
+        message["Subject"] = f"AI Competitive Intelligence Brief - {brief.period_start.strftime('%b %d')} to {brief.period_end.strftime('%b %d, %Y')}"
+        message["From"] = self.sender_email
+        message["To"] = self.receiver_email
+
+        # Create plain text version
+        text_content = self._format_brief_text_email(brief)
+
+        # Create HTML version
+        html_content = self._format_brief_html_email(brief)
+
+        # Attach both versions
+        part1 = MIMEText(text_content, "plain")
+        part2 = MIMEText(html_content, "html")
+
+        message.attach(part1)
+        message.attach(part2)
+
+        return message
+
+    def _format_brief_text_email(self, brief: IntelligenceBrief) -> str:
+        """
+        Format brief as plain text email.
+
+        Args:
+            brief: IntelligenceBrief to format
+
+        Returns:
+            Plain text email content
+        """
+        return f"""
+AI Competitive Intelligence Brief
+Generated: {brief.generated_at.strftime('%Y-%m-%d %H:%M:%S')}
+
+{'='*60}
+REPORTING PERIOD
+{'='*60}
+
+{brief.period_start.strftime('%B %d, %Y')} to {brief.period_end.strftime('%B %d, %Y')}
+Total Findings: {brief.finding_count}
+
+{'='*60}
+EXECUTIVE SUMMARY
+{'='*60}
+
+{brief.executive_summary}
+
+{'='*60}
+KEY FINDINGS
+{'='*60}
+
+{self._format_key_findings_text(brief.key_findings)}
+
+{'='*60}
+COMPETITOR ACTIVITY
+{'='*60}
+
+{self._format_competitor_activity_text(brief.competitor_activity)}
+
+{'='*60}
+
+Powered by AI Competitive Intelligence Worker V1
+        """.strip()
+
+    def _format_key_findings_text(self, key_findings: list) -> str:
+        """Format key findings as text."""
+        lines = []
+        for i, finding in enumerate(key_findings, 1):
+            lines.append(f"{i}. {finding['text']}")
+            lines.append(f"   Source: {finding['source_name']}")
+            lines.append(f"   URL: {finding['source_url']}")
+            lines.append("")
+        return "\n".join(lines)
+
+    def _format_competitor_activity_text(self, competitor_activity: dict) -> str:
+        """Format competitor activity as text."""
+        lines = []
+        for competitor in sorted(competitor_activity.keys()):
+            activities = competitor_activity[competitor]
+            lines.append(f"\n{competitor}:")
+            for activity in activities:
+                lines.append(f"  • {activity['text']}")
+                lines.append(f"    Source: {activity['source_name']}")
+                lines.append(f"    URL: {activity['source_url']}")
+            lines.append("")
+        return "\n".join(lines)
+
+    def _format_brief_html_email(self, brief: IntelligenceBrief) -> str:
+        """
+        Format brief as HTML email.
+
+        Args:
+            brief: IntelligenceBrief to format
+
+        Returns:
+            HTML email content
+        """
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        .header h1 {{
+            margin: 0;
+            font-size: 28px;
+        }}
+        .header p {{
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }}
+        .stats {{
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0 30px 0;
+        }}
+        .stat-card {{
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            margin: 0 10px;
+        }}
+        .stat-value {{
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }}
+        .stat-label {{
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }}
+        .section {{
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .section h2 {{
+            margin-top: 0;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }}
+        .finding-item {{
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }}
+        .finding-text {{
+            margin-bottom: 10px;
+            font-size: 16px;
+        }}
+        .finding-source {{
+            font-size: 13px;
+            color: #666;
+        }}
+        .finding-source a {{
+            color: #667eea;
+            text-decoration: none;
+        }}
+        .finding-source a:hover {{
+            text-decoration: underline;
+        }}
+        .competitor-section {{
+            margin-bottom: 25px;
+        }}
+        .competitor-name {{
+            font-size: 20px;
+            font-weight: bold;
+            color: #764ba2;
+            margin-bottom: 15px;
+        }}
+        .activity-item {{
+            margin-bottom: 15px;
+            padding-left: 20px;
+            border-left: 3px solid #ddd;
+        }}
+        .footer {{
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 AI Competitive Intelligence Brief</h1>
+        <p>{brief.period_start.strftime('%B %d')} - {brief.period_end.strftime('%B %d, %Y')}</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-value">{brief.finding_count}</div>
+            <div class="stat-label">TOTAL FINDINGS</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{len(brief.competitor_activity)}</div>
+            <div class="stat-label">COMPETITORS</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{len(brief.key_findings)}</div>
+            <div class="stat-label">KEY FINDINGS</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <p>{html.escape(brief.executive_summary)}</p>
+    </div>
+
+    <div class="section">
+        <h2>Key Findings</h2>
+        {self._format_key_findings_html(brief.key_findings)}
+    </div>
+
+    <div class="section">
+        <h2>Competitor Activity</h2>
+        {self._format_competitor_activity_html(brief.competitor_activity)}
+    </div>
+
+    <div class="footer">
+        <p>Generated on {brief.generated_at.strftime('%B %d, %Y at %I:%M %p')}</p>
+        <p>Powered by AI Competitive Intelligence Worker V1 | Using Google Gemini AI</p>
+    </div>
+</body>
+</html>
+        """
+
+        return html_content
+
+    def _format_key_findings_html(self, key_findings: list) -> str:
+        """Format key findings as HTML."""
+        html_items = []
+        for i, finding in enumerate(key_findings, 1):
+            # Escape all untrusted content
+            finding_text = html.escape(finding.get('text', ''))
+            source_name = html.escape(finding.get('source_name', ''))
+            source_url = html.escape(finding.get('source_url', ''), quote=True)
+
+            html_items.append(f"""
+        <div class="finding-item">
+            <div class="finding-text"><strong>{i}.</strong> {finding_text}</div>
+            <div class="finding-source">
+                Source: {source_name} -
+                <a href="{source_url}" target="_blank">View Article</a>
+            </div>
+        </div>
+            """)
+        return "".join(html_items)
+
+    def _format_competitor_activity_html(self, competitor_activity: dict) -> str:
+        """Format competitor activity as HTML."""
+        html_sections = []
+        for competitor in sorted(competitor_activity.keys()):
+            # Escape competitor name
+            competitor_escaped = html.escape(competitor)
+            activities = competitor_activity[competitor]
+            activity_html = []
+            for activity in activities:
+                # Escape all untrusted content
+                activity_text = html.escape(activity.get('text', ''))
+                source_name = html.escape(activity.get('source_name', ''))
+                source_url = html.escape(activity.get('source_url', ''), quote=True)
+
+                activity_html.append(f"""
+            <div class="activity-item">
+                <div class="finding-text">• {activity_text}</div>
+                <div class="finding-source">
+                    Source: {source_name} -
+                    <a href="{source_url}" target="_blank">View Article</a>
+                </div>
+            </div>
+                """)
+
+            html_sections.append(f"""
+        <div class="competitor-section">
+            <div class="competitor-name">{competitor_escaped}</div>
+            {''.join(activity_html)}
+        </div>
+            """)
+
+        return "".join(html_sections)

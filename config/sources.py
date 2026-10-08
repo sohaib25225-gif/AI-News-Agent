@@ -68,12 +68,6 @@ RSS_SOURCES: list[NewsSource] = [
         "category": "research",
         "source_type": "rss"
     },
-    {
-        "name": "arXiv AI",
-        "url": "https://rss.arxiv.org/rss/cs.AI",
-        "category": "research",
-        "source_type": "rss"
-    },
     # Developer & Community
     {
         "name": "Hugging Face Blog",
@@ -144,3 +138,97 @@ def get_source_by_name(name: str) -> NewsSource | None:
         if source["name"] == name:
             return source
     return None
+
+
+# ============================================================================
+# V1 Configuration - Competitive Intelligence
+# ============================================================================
+
+# Competitor Mapping - Approved V1 Scope: 5 competitors only
+# Maps source names to competitor names for intelligence gathering
+COMPETITOR_MAPPING = {
+    "OpenAI Blog": "OpenAI",
+    "Google AI Blog": "Google AI",
+    "DeepMind Blog": "Google AI",  # DeepMind is part of Google
+    "Meta Blog": "Meta AI",
+    "Microsoft Blog": "Microsoft AI",
+    # Note: Anthropic not yet in RSS sources, but included in approved scope
+    "Anthropic Blog": "Anthropic",  # If/when added to sources
+    # REMOVED: NVIDIA, AWS, Hugging Face (not in approved scope)
+}
+
+# Competitor Aliases - For detection in article content
+# Use with caution to avoid false positives
+COMPETITOR_ALIASES = {
+    "OpenAI": ["openai", "gpt-", "chatgpt", "dall-e", "dall e", "sam altman"],
+    "Anthropic": ["anthropic", "claude", "constitutional ai", "dario amodei"],
+    "Google AI": ["google ai", "gemini", "bard", "palm", "vertex ai", "deepmind", "demis hassabis"],
+    "Meta AI": ["meta ai", "llama", "facebook ai research", "fair", "mark zuckerberg"],
+    "Microsoft AI": ["microsoft", "microsoft ai", "azure ai", "copilot", "satya nadella"],
+}
+
+# Source Confidence Scores
+# Based on source type and reliability for competitive intelligence
+SOURCE_CONFIDENCE_SCORES = {
+    "company_blog": 0.9,      # Official company announcements
+    "research": 0.85,         # Peer-reviewed research, official research blogs
+    "news": 0.75,             # Tech news outlets
+    "developer": 0.70,        # Developer platforms and blogs
+    "community": 0.60,        # Community-driven sources
+}
+
+
+def get_competitor_from_source(source_name: str) -> str | None:
+    """
+    Get competitor name from source name.
+
+    Args:
+        source_name: Name of the news source
+
+    Returns:
+        Competitor name if mapped, None otherwise
+    """
+    return COMPETITOR_MAPPING.get(source_name)
+
+
+def get_source_confidence(source_name: str) -> float:
+    """
+    Get source confidence score based on source type.
+
+    Args:
+        source_name: Name of the news source
+
+    Returns:
+        Confidence score (0.0-1.0)
+    """
+    # Find the source in our sources list
+    source = get_source_by_name(source_name)
+
+    if not source:
+        # Unknown source, use conservative confidence
+        return 0.5
+
+    # Map source category to confidence score
+    category = source.get("category", "news")
+
+    # Map category to source type for confidence scoring
+    category_to_type = {
+        "company": "company_blog",
+        "research": "research",
+        "news": "news",
+        "developer": "developer",
+        "community": "community",
+    }
+
+    source_type = category_to_type.get(category, "news")
+    return SOURCE_CONFIDENCE_SCORES.get(source_type, 0.6)
+
+
+def get_tracked_competitors() -> list[str]:
+    """
+    Get list of all tracked competitors.
+
+    Returns:
+        List of unique competitor names
+    """
+    return sorted(set(COMPETITOR_MAPPING.values()))

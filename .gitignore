@@ -73,3 +73,25 @@ cover/
 
 # mypy
 .mypy_cache/
+
+# Diagnostic / one-off scripts (not part of product or test suite)
+analyze_classification.py
+analyze_classification2.py
+calculate_distribution.py
+debug_finding11.py
+debug_finding11_v2.py
+detailed_analysis.py
+diagnostic_before_after.py
+find_alternatives.py
+inspect_findings.py
+phase3c_diagnostic.py
+pipeline_diagnostic.py
+real_data_validation.py
+test_classification_fix.py
+test_feeds_diagnostic.py
+test_gemini_connection.py
+test_news_fetcher.py
+test_per_source_approach.py
+test_three_fixes.py
+verify_rss_urls.py
+validation_output.txt
